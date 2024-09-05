@@ -27,7 +27,7 @@ client = chromadb.HttpClient(
     settings=Settings()
 )
 
-shared_embedder = HuggingFaceEmbeddings(model_name="deepvk/USER-bge-m3")
+shared_embedder = HuggingFaceEmbeddings(model_name="deepvk/USER-base")
 
 text_splitter = SemanticChunker(shared_embedder, breakpoint_threshold_type="percentile", breakpoint_threshold_amount=65)
 
