@@ -1,14 +1,22 @@
+from utils import process_document, add_document_to_db, search_in_db
+
 import tempfile
 import aiofiles
+import os
+import zipfile
+from typing import List
+from dotenv import load_dotenv
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
-from typing import List
-import os
-from dotenv import load_dotenv
-import zipfile
-from utils import process_document, add_document_to_db, search_in_db
+
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_ollama.llms import OllamaLLM
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_chroma import Chroma
+
 from chromadb.utils import embedding_functions
 import chromadb
 from chromadb.config import Settings
@@ -20,6 +28,7 @@ app = FastAPI()
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = os.getenv("CHROMA_PORT")
+HF_ACCESS_TOKEN = os.getenv("HF_ACCESS_TOKEN")
 
 client = chromadb.HttpClient(
     host=CHROMA_HOST,
@@ -30,6 +39,8 @@ client = chromadb.HttpClient(
 shared_embedder = HuggingFaceEmbeddings(model_name="deepvk/USER-base")
 
 text_splitter = SemanticChunker(shared_embedder, breakpoint_threshold_type="percentile", breakpoint_threshold_amount=65)
+
+llm = OllamaLLM(model_name="gemma-2b")
 
 class ChromaEmbeddingFunction:
     def __init__(self, embedder):
@@ -45,6 +56,8 @@ collection = client.get_or_create_collection(
     embedding_function=chroma_embedding_function,
 )
 
+langchainChroma = Chroma(client = client, collection_name = COLLECTION_NAME, embedding_function=chroma_embedding_function)
+retriever = langchainChroma.as_retriever(search_kwargs={"k":2})
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -110,3 +123,23 @@ async def search_document(query: str, num: int):
         return {"results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/generate_with_rag")
+async def generate_with_rag(query: str):
+    query = """What is your most favorite food?"""
+    relevant_docs = retriever.invoke(query)
+    combined_input = (
+        "Вот несколько документов, которые могут помочь ответить на вопрос: "
+        + query
+        + "\n\nСоответствующие документы:\n"
+        + "\n\n".join([doc.page_content for doc in relevant_docs])
+        + "\n\nПожалуйста, предоставьте ответ, основываясь только на предоставленных документах. Если ответ не найден в документах, ответьте 'Я не уверен'."
+    )
+    messages = [
+        SystemMessage(content="Ты ассистент отвечающий на вопросы по информации которая есть в нормативно-правовых-актах"),
+        HumanMessage(content=combined_input),
+    ]
+    result = llm.invoke(messages)
+    return result
+
