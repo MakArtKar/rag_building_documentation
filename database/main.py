@@ -3,13 +3,15 @@ import aiofiles
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from typing import List
-from utils import process_document, add_document_to_db, search_in_db
 import os
 from dotenv import load_dotenv
+import zipfile
+from utils import process_document, add_document_to_db, search_in_db
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from chromadb.utils import embedding_functions
 import chromadb
 from chromadb.config import Settings
-from chromadb.utils import embedding_functions
-import zipfile
 
 load_dotenv()
 
@@ -25,19 +27,31 @@ client = chromadb.HttpClient(
     settings=Settings()
 )
 
-model_name = "all-MiniLM-L6-v2"
-sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model_name)
+shared_embedder = HuggingFaceEmbeddings(model_name="deepvk/USER-bge-m3")
+
+text_splitter = SemanticChunker(shared_embedder, breakpoint_threshold_type="percentile", breakpoint_threshold_amount=65)
+
+class ChromaEmbeddingFunction:
+    def __init__(self, embedder):
+        self.embedder = embedder
+
+    def __call__(self, input: List[str]) -> List[List[float]]:
+        return self.embedder.embed_documents(input)
+
+chroma_embedding_function = ChromaEmbeddingFunction(shared_embedder)
+
 collection = client.get_or_create_collection(
     name=COLLECTION_NAME,
-    embedding_function=sentence_transformer_ef,
+    embedding_function=chroma_embedding_function,
 )
+
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
     try:
         content = await file.read()
         document_text = process_document(file.filename, content)
-        add_document_to_db(document_text, collection)
+        add_document_to_db(document_text, collection, text_splitter)
         return {"filename": file.filename, "status": "Uploaded successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -79,7 +93,7 @@ async def upload_folder(file: UploadFile = File(...)):
                     try:
                         # Process document and add to DB
                         document_text = process_document(name, content)
-                        add_document_to_db(document_text, collection)
+                        add_document_to_db(document_text, collection, text_splitter)
                     except ValueError as ve:
                         print(f"Error processing file {name}: {ve}")
                         continue

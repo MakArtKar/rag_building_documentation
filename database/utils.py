@@ -1,12 +1,8 @@
 import io
 import pdfplumber
 import docx
-
-def chunk_text(text, chunk_size=1000):
-    """
-    Разбивает текст на чанки фиксированного размера.
-    """
-    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+from langchain_experimental.text_splitter import SemanticChunker
+from chromadb.utils import embedding_functions
 
 def process_pdf(content):
     text = ""
@@ -46,9 +42,9 @@ def process_document(filename, content):
     else:
         raise ValueError("Unsupported document format")
 
-def add_document_to_db(document_data, collection):
-    document_chunks = chunk_text(document_data)
-    for i, chunk in enumerate(document_chunks):
+def add_document_to_db(document_data, collection, text_splitter):
+    chunks = text_splitter.split_text(document_data)
+    for i, chunk in enumerate(chunks):
         chunk_id = f"{collection.name}-{i+1}"
         collection.add(
             documents=[chunk],
