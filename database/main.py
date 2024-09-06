@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-from langchain_ollama.llms import OllamaLLM
+from langchain_google_vertexai import GemmaLocalHF
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_chroma import Chroma
@@ -40,7 +40,7 @@ shared_embedder = HuggingFaceEmbeddings(model_name="deepvk/USER-base")
 
 text_splitter = SemanticChunker(shared_embedder, breakpoint_threshold_type="percentile", breakpoint_threshold_amount=65)
 
-llm = OllamaLLM(model_name="gemma-2b")
+llm = GemmaLocalHF(model_name="google/gemma-2b", hf_access_token=HF_ACCESS_TOKEN)
 
 class ChromaEmbeddingFunction:
     def __init__(self, embedder):
