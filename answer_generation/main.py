@@ -22,7 +22,7 @@ app = FastAPI()
 llm = ChatOpenAI(model='gpt-4o-mini')
 
 
-def answer_question(query: str, docs: list[str], approach='concat'):
+def answer_question(query: str, docs: list[str], approach: str = 'concat'):
     if approach == 'concat':
         chain = prompt_template | llm
         context = '\n'.join(docs)
@@ -42,10 +42,10 @@ def answer_question(query: str, docs: list[str], approach='concat'):
 
 
 @app.get("/ask")
-async def ask_question(query: str, approach='concat'):
+async def ask_question(query: str, num: int = 5, approach: str = 'concat'):
     async with httpx.AsyncClient() as client:
         try:
-            query_params = {"query": query, "num": 5}
+            query_params = {"query": query, "num": num}
             response = await client.get(urljoin(RETRIEVER_URL, "search"), params=query_params)
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail=response.content.decode())
