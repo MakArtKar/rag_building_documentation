@@ -41,6 +41,7 @@ services:
       - "8003:8003"
     environment:
       - ANSWERING_HOST=http://answer_generation:8002
+      - RETRIEVER_URL=http://retriever:8001
     depends_on:
       - answer_generation
     command: ["python", "main.py"]

@@ -11,6 +11,11 @@ from dotenv import load_dotenv
 load_dotenv()
 TG_API_TOKEN = os.getenv('TG_API_TOKEN')
 ANSWERING_HOST = os.getenv('ANSWERING_HOST')
+DOWNLOAD_DIR = os.getenv('DOWNLOAD_DIR')
+RETRIEVER_URL = os.getenv("RETRIEVER_URL")
+HTTP_TIMEOUT = 1200
+
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 bot = Bot(token=TG_API_TOKEN)
 dp = Dispatcher()
@@ -43,7 +48,29 @@ async def ask(message: types.Message):
             'query': user_question,
             'num': 5,
         }
-        await message.reply(httpx.get(host, params=query_params).json()['response']['content'])
+        await message.reply(httpx.get(host, params=query_params, timeout=HTTP_TIMEOUT).json()['response']['content'])
+
+
+@dp.message(lambda message: message.document)
+async def handle_document(message: types.Message):
+    document = message.document
+
+    file_id = document.file_id
+    file_name = document.file_name
+
+    file = await bot.get_file(file_id)
+    file_path = file.file_path
+
+    destination_file = os.path.join(DOWNLOAD_DIR, file_name)
+    await bot.download_file(file_path, destination_file)
+
+    file = {'file': open(destination_file, 'rb')}
+    response = httpx.post(os.path.join(RETRIEVER_URL, 'upload'), files=file, timeout=HTTP_TIMEOUT)
+
+    if response.status_code == 200:
+        await message.answer(f"Document {file_name} has been downloaded successfully.")
+    else:
+        await message.answer(f"Something went wrong...")
 
 
 async def main():
