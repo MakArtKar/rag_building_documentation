@@ -1,3 +1,4 @@
+import logging
 import tempfile
 import aiofiles
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -9,7 +10,6 @@ import zipfile
 from utils import process_document, add_document_to_db, search_in_db
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-from chromadb.utils import embedding_functions
 import chromadb
 from chromadb.config import Settings
 
@@ -20,6 +20,10 @@ app = FastAPI()
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = os.getenv("CHROMA_PORT")
+
+
+logging.basicConfig(level=logging.INFO)
+
 
 client = chromadb.HttpClient(
     host=CHROMA_HOST,

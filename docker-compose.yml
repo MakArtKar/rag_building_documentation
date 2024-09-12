@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  app:
+  retriever:
     build:
       context: .
       dockerfile: ./database/Dockerfile
@@ -11,7 +11,25 @@ services:
       - "8001:8001"
     depends_on:
       - chromadb
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
     command: ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug"]
+
+  answer_generation:
+    build:
+      context: .
+      dockerfile: ./answer_generation/Dockerfile
+    volumes:
+      - .:/app
+    ports:
+      - "8002:8002"
+    environment:
+      - OPENAI_API_KEY
+      - RETRIEVER_URL=http://retriever:8001
+    depends_on:
+      - retriever
+    command: ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--log-level", "debug"]
 
   chromadb:
     image: chromadb/chroma:latest
