@@ -20,9 +20,12 @@ RETRIEVER_URL = os.getenv("RETRIEVER_URL")
 
 app = FastAPI()
 llm = ChatOpenAI(model='gpt-4o-mini')
+ranker = Reranker('DiTy/cross-encoder-russian-msmarco', model_type='flashrank')
 
-
-def answer_question(query: str, docs: list[str], approach: str = 'concat'):
+def answer_question(query: str, docs: list[str], approach: str = 'concat', reranker: bool = True):
+    if reranker:
+        docs = ranker.rank(query=query, docs=docs)
+        docs = [i.document.text for i in docs.results]
     if approach == 'concat':
         chain = prompt_template | llm
         context = '\n'.join(docs)
@@ -42,7 +45,7 @@ def answer_question(query: str, docs: list[str], approach: str = 'concat'):
 
 
 @app.get("/ask")
-async def ask_question(query: str, num: int = 5, approach: str = 'concat'):
+async def ask_question(query: str, num: int = 5, approach: str = 'concat', reranker: bool = True):
     async with httpx.AsyncClient() as client:
         try:
             query_params = {"query": query, "num": num}
@@ -50,6 +53,6 @@ async def ask_question(query: str, num: int = 5, approach: str = 'concat'):
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail=response.content.decode())
             docs = json.loads(response.content)['results']['documents']
-            return {"response": answer_question(query, docs[0], approach=approach)}
+            return {"response": answer_question(query, docs[0], approach=approach, reranker=reranker)}
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
