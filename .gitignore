@@ -1,5 +1,4 @@
 __pycache__
 chromadb_data
-database/poetry.lock
-answer_generation/poetry.lock
+*/poetry.lock
 .env
