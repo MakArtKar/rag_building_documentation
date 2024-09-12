@@ -41,7 +41,7 @@ async def ask(message: types.Message):
         host = os.path.join(ANSWERING_HOST, 'ask')
         query_params = {
             'query': user_question,
-            'num': 10,
+            'num': 5,
         }
         await message.reply(httpx.get(host, params=query_params).json()['response']['content'])
 
