@@ -22,6 +22,7 @@ langchain-huggingface = "^0.0.3"
 marker-pdf = "^0.2.17"
 pathlib = "^1.0.1"
 mdformat-myst = "^0.1.5"
+rerankers = {extras = ["flashrank"], version = "^0.5.3"}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
