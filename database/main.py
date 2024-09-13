@@ -12,6 +12,7 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 import chromadb
 from chromadb.config import Settings
+from rerankers import Reranker
 
 load_dotenv()
 
@@ -20,6 +21,7 @@ app = FastAPI()
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = os.getenv("CHROMA_PORT")
+THRESHOLD = 0.5
 
 
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +36,8 @@ client = chromadb.HttpClient(
 shared_embedder = HuggingFaceEmbeddings(model_name="deepvk/USER-base")
 
 text_splitter = SemanticChunker(shared_embedder, breakpoint_threshold_type="percentile", breakpoint_threshold_amount=65)
+
+ranker = Reranker('DiTy/cross-encoder-russian-msmarco', model_type='cross-encoder')
 
 class ChromaEmbeddingFunction:
     def __init__(self, embedder):
@@ -108,9 +112,12 @@ async def upload_folder(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/search")
-async def search_document(query: str, num: int):
+async def search_document(query: str, num: int, reranker: bool = True):
     try:
-        results = search_in_db(query, collection, num)
-        return {"results": results}
+        docs = search_in_db(query, collection, num)['documents'][0]
+        if reranker:
+            docs = ranker.rank(query=query, docs=docs)
+            docs = [i.document.text for i in docs.results if i.score > THRESHOLD]
+        return {"docs": docs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

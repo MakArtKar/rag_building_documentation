@@ -19,6 +19,7 @@ aiofiles = "^24.1.0"
 langchain = "^0.2.16"
 langchain-experimental = "^0.0.65"
 langchain-huggingface = "^0.0.3"
+rerankers = {extras = ["flashrank"], version = "^0.5.3"}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

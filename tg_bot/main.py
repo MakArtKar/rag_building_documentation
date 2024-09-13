@@ -48,7 +48,11 @@ async def ask(message: types.Message):
             'query': user_question,
             'num': 5,
         }
-        await message.reply(httpx.get(host, params=query_params, timeout=HTTP_TIMEOUT).json()['response']['content'])
+        response = httpx.get(host, params=query_params, timeout=HTTP_TIMEOUT)
+        if response.status_code != 200:
+            await message.reply("Smth went wrong...")
+        else:
+            await message.reply(response.json()['response']['content'])
 
 
 @dp.message(lambda message: message.document)
