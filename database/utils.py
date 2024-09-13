@@ -48,7 +48,7 @@ def img2txt(cnt_dir, inpt_md, outpt_dir):
         while re.search(f'!\[{name}\.png\]\({name}\.png\)', txt, re.IGNORECASE):
             x = re.search(f'!\[{name}\.png\]\({name}\.png\)', txt, re.IGNORECASE)
             txt = txt.replace(txt[x.start(): x.end()], f"$$$picture_{cnt}$$$\nЗдесь находится изображение, на которое могут и можно ссылаться.")
-            os.replace(f"{cnt_dir}/{i}", f"{outpt_dir}/picture_{cnt}.png")
+            os.replace(f"{cnt_dir}/{i}", f"{outpt_dir}/images/picture_{cnt}.png")
             cnt += 1
     with open(inpt_md, 'w') as out:
         out.write(txt)
