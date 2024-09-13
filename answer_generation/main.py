@@ -22,7 +22,7 @@ app = FastAPI()
 llm = ChatOpenAI(model='gpt-4o-mini')
 
 
-def answer_question(query: str, docs: list[str], approach: str = 'concat', reranker: bool = True):
+def answer_question(query: str, docs: list[str], approach: str = 'concat'):
     if approach == 'concat':
         chain = prompt_template | llm
         context = '\n'.join(docs)
@@ -43,7 +43,7 @@ def answer_question(query: str, docs: list[str], approach: str = 'concat', reran
 
 @app.get("/ask")
 async def ask_question(query: str, num: int = 5, approach: str = 'concat', reranker: bool = True):
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=1200) as client:
         try:
             query_params = {"query": query, "num": num, "reranker": reranker}
             response = await client.get(urljoin(RETRIEVER_URL, "search"), params=query_params)

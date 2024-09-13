@@ -21,6 +21,7 @@ app = FastAPI()
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = os.getenv("CHROMA_PORT")
+THRESHOLD = 0.5
 
 
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +37,7 @@ shared_embedder = HuggingFaceEmbeddings(model_name="deepvk/USER-base")
 
 text_splitter = SemanticChunker(shared_embedder, breakpoint_threshold_type="percentile", breakpoint_threshold_amount=65)
 
-ranker = Reranker('DiTy/cross-encoder-russian-msmarco', model_type='flashrank')
+ranker = Reranker('DiTy/cross-encoder-russian-msmarco', model_type='cross-encoder')
 
 class ChromaEmbeddingFunction:
     def __init__(self, embedder):
@@ -116,7 +117,7 @@ async def search_document(query: str, num: int, reranker: bool = True):
         docs = search_in_db(query, collection, num)['documents'][0]
         if reranker:
             docs = ranker.rank(query=query, docs=docs)
-            docs = [i.document.text for i in docs.results]
+            docs = [i.document.text for i in docs.results if i.score > THRESHOLD]
         return {"docs": docs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
