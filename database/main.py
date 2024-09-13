@@ -21,7 +21,7 @@ app = FastAPI()
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = os.getenv("CHROMA_PORT")
-THRESHOLD = 0.5
+THRESHOLD = 0
 
 
 logging.basicConfig(level=logging.INFO)
@@ -112,7 +112,7 @@ async def upload_folder(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/search")
-async def search_document(query: str, num: int, reranker: bool = True):
+async def search_document(query: str, num: int = 5, reranker: bool = True):
     try:
         docs = search_in_db(query, collection, num)['documents'][0]
         if reranker:
