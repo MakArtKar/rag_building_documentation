@@ -2,3 +2,5 @@ __pycache__
 chromadb_data
 */poetry.lock
 .env
+output
+temp_files
