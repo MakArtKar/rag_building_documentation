@@ -5,7 +5,9 @@ from langchain_experimental.text_splitter import SemanticChunker
 from chromadb.utils import embedding_functions
 import subprocess
 from pathlib import Path
-
+import re
+import os
+cnt = 0
 def process_pdf(content):
     text = ""
     try:
@@ -33,6 +35,24 @@ def pdf2markdown(input_file: str, output_dir: str) -> Path:
     subprocess.run(f"mdformat {output_path / (file_name + '.md')}", shell=True, check=True)
     # Возвращаем путь к папке с результатами
     return output_path
+
+def img2txt(cnt_dir, inpt_md, outpt_dir):
+    global cnt
+    with open(inpt_md) as text_file:
+        txt = text_file.read()
+    res = {}
+    for i in os.listdir(cnt_dir):
+        name = i[:i.find('.')]
+        if i[i.rfind('.') + 1:] != "png":
+            continue
+        while re.search(f'!\[{name}\.png\]\({name}\.png\)', txt, re.IGNORECASE):
+            x = re.search(f'!\[{name}\.png\]\({name}\.png\)', txt, re.IGNORECASE)
+            txt = txt.replace(txt[x.start(): x.end()], f"$$$picture_{cnt}$$$\nЗдесь находится изображение, на которое могут и можно ссылаться.")
+            os.replace(f"{cnt_dir}/{i}", f"{outpt_dir}/picture_{cnt}.png")
+            cnt += 1
+    with open(inpt_md, 'w') as out:
+        out.write(txt)
+    return txt
 
 def process_docx(content):
     doc = docx.Document(io.BytesIO(content))

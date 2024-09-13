@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 import zipfile
 import shutil
 from pathlib import Path
-from utils import process_document, add_document_to_db, search_in_db, pdf2markdown
+from utils import process_document, add_document_to_db, search_in_db, pdf2markdown, img2txt
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 import chromadb
@@ -22,7 +22,7 @@ app = FastAPI()
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = os.getenv("CHROMA_PORT")
-
+cnt = 0
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,8 +51,8 @@ collection = client.get_or_create_collection(
     embedding_function=chroma_embedding_function,
 )
 
-TEMP_DIR = Path("temp_files")
-OUTPUT_DIR = Path("output")
+TEMP_DIR = Path("/app/temp_files")
+OUTPUT_DIR = Path("/app/output")
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -68,11 +68,8 @@ async def upload_document(file: UploadFile = File(...)):
         
         # Преобразуем PDF в Markdown
         output_path = pdf2markdown(str(temp_file_path), str(OUTPUT_DIR))
-        
-        # Читаем содержимое Markdown файла
         markdown_file_path = output_path / (output_path.stem + '.md')
-        with open(markdown_file_path, 'r', encoding='utf-8') as md_file:
-            document_text = md_file.read()
+        document_text = img2txt(output_path, markdown_file_path, str(OUTPUT_DIR))
 
         # Добавляем документ в базу данных
         add_document_to_db(document_text, collection, text_splitter)
