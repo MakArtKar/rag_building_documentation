@@ -3,7 +3,7 @@ FROM python:3.10
 WORKDIR /app/database
 
 # Установка зависимостей для Poetry и других нужных пакетов
-RUN apt-get update && apt-get install -y curl gcc
+RUN apt-get update && apt-get install -y curl gcc libgl1-mesa-glx libglib2.0-0
 
 # Установка Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -

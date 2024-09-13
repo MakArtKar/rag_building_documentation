@@ -7,7 +7,9 @@ from typing import List
 import os
 from dotenv import load_dotenv
 import zipfile
-from utils import process_document, add_document_to_db, search_in_db
+import shutil
+from pathlib import Path
+from utils import process_document, add_document_to_db, search_in_db, pdf2markdown
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 import chromadb
@@ -49,14 +51,33 @@ collection = client.get_or_create_collection(
     embedding_function=chroma_embedding_function,
 )
 
+TEMP_DIR = Path("temp_files")
+OUTPUT_DIR = Path("output")
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
     try:
-        content = await file.read()
-        document_text = process_document(file.filename, content)
+        # Проверяем, что временные и выходные директории существуют
+        TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Сохраняем загруженный файл
+        temp_file_path = TEMP_DIR / file.filename
+        with open(temp_file_path, 'wb') as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+        
+        # Преобразуем PDF в Markdown
+        output_path = pdf2markdown(str(temp_file_path), str(OUTPUT_DIR))
+        
+        # Читаем содержимое Markdown файла
+        markdown_file_path = output_path / (output_path.stem + '.md')
+        with open(markdown_file_path, 'r', encoding='utf-8') as md_file:
+            document_text = md_file.read()
+
+        # Добавляем документ в базу данных
         add_document_to_db(document_text, collection, text_splitter)
-        return {"filename": file.filename, "status": "Uploaded successfully"}
+        
+        return {"filename": file.filename, "status": "Uploaded successfully", "output_path": str(output_path)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

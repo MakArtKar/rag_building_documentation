@@ -19,6 +19,8 @@ aiofiles = "^24.1.0"
 langchain = "^0.2.16"
 langchain-experimental = "^0.0.65"
 langchain-huggingface = "^0.0.3"
+marker-pdf = "^0.2.17"
+pathlib = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
