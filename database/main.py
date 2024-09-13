@@ -53,6 +53,7 @@ collection = client.get_or_create_collection(
 
 TEMP_DIR = Path("/app/temp_files")
 OUTPUT_DIR = Path("/app/output")
+IMG_DIR = Path("/app/output/images")
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -60,7 +61,7 @@ async def upload_document(file: UploadFile = File(...)):
         # Проверяем, что временные и выходные директории существуют
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        
+        IMG_DIR.mkdir(parents=True, exist_ok=True)
         # Сохраняем загруженный файл
         temp_file_path = TEMP_DIR / file.filename
         with open(temp_file_path, 'wb') as temp_file:
@@ -77,49 +78,53 @@ async def upload_document(file: UploadFile = File(...)):
         return {"filename": file.filename, "status": "Uploaded successfully", "output_path": str(output_path)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
 
 @app.post("/upload_folder")
 async def upload_folder(file: UploadFile = File(...)):
-    ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt"}
-
+    ALLOWED_EXTENSIONS = {".md"}
+    
     try:
-        # Create a temporary directory
-        with tempfile.TemporaryDirectory() as tmpdir:
-            archive_path = os.path.join(tmpdir, "uploaded_archive.zip")
-
-            # Save the uploaded file to the temporary directory
-            async with aiofiles.open(archive_path, 'wb') as out_file:
-                content = await file.read()
-                await out_file.write(content)
-
-            # Extract the contents of the archive
-            with zipfile.ZipFile(archive_path, 'r') as archive:
-                archive.extractall(tmpdir)
-
-            # Process each file in the extracted directory
-            for root, _, files in os.walk(tmpdir):
-                for name in files:
-                    file_path = os.path.join(root, name)
-                    
-                    # Skip unsupported file types
-                    _, ext = os.path.splitext(name)
-                    if ext.lower() not in ALLOWED_EXTENSIONS:
-                        continue
-
-                    print(f"Processing file: {name}")
-
-                    # Open and read the content of each file
-                    async with aiofiles.open(file_path, 'rb') as f:
-                        content = await f.read()
-                    
-                    try:
-                        # Process document and add to DB
-                        document_text = process_document(name, content)
-                        add_document_to_db(document_text, collection, text_splitter)
-                    except ValueError as ve:
-                        print(f"Error processing file {name}: {ve}")
-                        continue
-
+        # Создайте выходной каталог, если он еще не существует
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        IMG_DIR.mkdir(parents=True, exist_ok=True)
+        # Путь к архиву
+        archive_path = OUTPUT_DIR / "uploaded_archive.zip"
+        
+        # Сохраните загруженный файл в выходной директории
+        async with aiofiles.open(archive_path, 'wb') as out_file:
+            content = await file.read()
+            await out_file.write(content)
+            
+        # Извлеките содержимое архива
+        with zipfile.ZipFile(archive_path, 'r') as archive:
+            archive.extractall(OUTPUT_DIR)
+        
+        # Обработайте каждый файл в извлеченной директории
+        for root, dirs, files in os.walk(OUTPUT_DIR):
+            for name in files:
+                file_path = os.path.join(root, name)
+                
+                # Пропускаем неподдерживаемые типы файлов
+                _, ext = os.path.splitext(name)
+                if ext.lower() not in ALLOWED_EXTENSIONS:
+                    continue
+                
+                print(f"Processing file: {file_path}")
+                
+                # Откройте и прочитайте содержимое каждого файла
+                async with aiofiles.open(file_path, 'rb') as f:
+                    content = await f.read()
+                
+                try:
+                    # Обработайте документ и добавьте в БД
+                    document_text = process_document(name, content)
+                    add_document_to_db(document_text, collection, text_splitter)
+                except ValueError as ve:
+                    print(f"Error processing file {name}: {ve}")
+                    continue
+        
         return JSONResponse(status_code=200, content={"status": "Uploaded all files successfully"})
 
     except Exception as e:
