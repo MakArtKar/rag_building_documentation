@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 import re
 import os
+import uuid
 cnt = 0
 def process_pdf(content):
     text = ""
@@ -77,7 +78,7 @@ def process_document(filename, content):
 def add_document_to_db(document_data, collection, text_splitter):
     chunks = text_splitter.split_text(document_data)
     for i, chunk in enumerate(chunks):
-        chunk_id = f"{collection.name}-{i+1}"
+        chunk_id = uuid.uuid4()
         collection.add(
             documents=[chunk],
             metadatas=[{"source": "upload", "chunk_id": chunk_id}],
