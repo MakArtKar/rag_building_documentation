@@ -116,14 +116,11 @@ async def upload_folder(file: UploadFile = File(...)):
                 
                 print(f"Processing file: {file_path}")
                 
-                # Откройте и прочитайте содержимое каждого файла
-                async with aiofiles.open(file_path, 'rb') as f:
-                    content = await f.read()
                 
                 try:
-                    # Обработайте документ и добавьте в БД
-                    document_text = process_document(name, content)
-                    add_document_to_db(document_text, collection, text_splitter)
+                    with open(file_path) as text_file:
+                        document_text = text_file.read()
+                        add_document_to_db(document_text, collection, text_splitter)
                 except ValueError as ve:
                     print(f"Error processing file {name}: {ve}")
                     continue
@@ -136,9 +133,10 @@ async def upload_folder(file: UploadFile = File(...)):
 @app.get("/search")
 async def search_document(query: str, num: int = 5, reranker: bool = True):
     try:
-        docs = search_in_db(query, collection, num)['documents'][0]
+        docs = search_in_db(query, collection, num)
+        re_docs = docs['documents'][0]
         if reranker:
-            docs = ranker.rank(query=query, docs=docs)
+            docs = ranker.rank(query=query, docs=re_docs)
             docs = [i.document.text for i in docs.results if i.score > THRESHOLD]
         return {"docs": docs}
     except Exception as e:
